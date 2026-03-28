@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta name="theme-color" content="#6C63FF"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Todo App"/>
+<title>Todo List App</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --accent:#6C63FF;--accent2:#4ECDC4;--high:#FF6B6B;--med:#FFD93D;--low:#4ECDC4;
+  --bg:#0F0E17;--bg2:#1A1828;--bg3:#232136;--card:#1E1C2E;
+  --border:rgba(108,99,255,0.2);--text:#FFFFFE;--text2:#A7A9BE;--text3:#6B6D7E;
+  --success:#6BCB77;--radius:16px;--radius-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative;}
+
+/* Header */
+.header{padding:18px 16px 10px;background:var(--bg);z-index:10;flex-shrink:0;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.app-title{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-btns{display:flex;gap:6px;align-items:center;}
+.gps-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);padding:4px 9px;border-radius:50px;background:var(--bg2);border:1px solid var(--border);}
+.gps-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);}
+.gps-dot.on{background:var(--success);box-shadow:0 0 5px var(--success);}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.icon-btn:active{transform:scale(.9);}
+
+/* Tabs */
+.tab-row{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.tab-row::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:6px 14px;border-radius:50px;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tab .cnt{font-size:11px;font-weight:700;padding:1px 6px;border-radius:50px;background:rgba(255,255,255,.2);}
+.tab:not(.active) .cnt{background:var(--bg3);color:var(--text3);}
+.tab-add{border-style:dashed;color:var(--accent);}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:0 16px 100px;}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:55vh;gap:10px;}
+.empty-icon{font-size:48px;}
+.empty-txt{font-size:14px;color:var(--text2);text-align:center;line-height:1.7;}
+
+/* Add bar */
+.add-bar{position:absolute;bottom:0;left:0;right:0;padding:10px 16px 22px;background:linear-gradient(to top,var(--bg) 75%,transparent);}
+.add-row{display:flex;gap:8px;}
+.add-inp{flex:1;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;outline:none;}
+.add-inp:focus{border-color:var(--accent);}
+.add-inp::placeholder{color:var(--text3);}
+.add-btn{padding:12px 16px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#fff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;cursor:pointer;}
+.add-btn:active{background:#5a52e0;}
+.detail-btn{padding:12px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:15px;cursor:pointer;}
+
+/* Section */
+.sec-label{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:14px 2px 7px;}
+.divider{height:1px;background:var(--border);margin:10px 0 2px;}
+
+/* Task card */
+.task-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:7px;overflow:hidden;animation:si .2s ease;}
+@keyframes si{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.task-card.done{opacity:.55;}
+.task-inner{display:flex;align-items:flex-start;padding:12px 10px;gap:8px;}
+.p-stripe{width:4px;border-radius:4px;align-self:stretch;flex-shrink:0;}
+.p-stripe.High{background:var(--high);}
+.p-stripe.Medium{background:var(--med);}
+.p-stripe.Low{background:var(--low);}
+.chk-wrap{position:relative;flex-shrink:0;margin-top:1px;}
+.chk-wrap input{position:absolute;opacity:0;width:22px;height:22px;cursor:pointer;z-index:1;}
+.chk-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.chk-wrap input:checked+.chk-box{background:var(--accent);border-color:var(--accent);}
+.chk-wrap input:checked+.chk-box::after{content:'✓';color:#fff;font-size:13px;font-weight:700;}
+.task-body{flex:1;min-width:0;}
+.task-txt{font-size:14px;font-weight:500;color:var(--text);line-height:1.4;word-break:break-word;}
+.done .task-txt{text-decoration:line-through;color:var(--text3);}
+.task-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+.pill{font-size:11px;padding:2px 8px;border-radius:50px;font-weight:500;}
+.pill.due{background:rgba(255,217,61,.12);color:var(--med);}
+.pill.overdue{background:rgba(255,107,107,.15);color:var(--high);}
+.pill.loc{background:rgba(78,205,196,.12);color:var(--accent2);}
+.task-acts{display:flex;gap:2px;flex-shrink:0;}
+.t-btn{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--text3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.t-btn:active{background:var(--bg3);}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.sheet{background:var(--bg2);border-radius:22px 22px 0 0;padding:18px 18px 36px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.overlay.open .sheet{transform:translateY(0);}
+.handle{width:38px;height:4px;border-radius:4px;background:var(--border);margin:0 auto 16px;}
+.sheet-title{font-size:17px;font-weight:700;margin-bottom:16px;}
+.lbl{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}
+.fld{margin-bottom:14px;}
+.fld input,.fld select{width:100%;padding:12px 13px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none;}
+.fld input:focus,.fld select:focus{border-color:var(--accent);}
+.fld select option{background:var(--bg3);}
+.fld-row{display:flex;gap:10px;}
+.fld-row .fld{flex:1;}
+.p-btns{display:flex;gap:7px;}
+.p-opt{flex:1;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
+.p-opt.High.sel{background:rgba(255,107,107,.2);border-color:var(--high);color:var(--high);}
+.p-opt.Medium.sel{background:rgba(255,217,61,.2);border-color:var(--med);color:var(--med);}
+.p-opt.Low.sel{background:rgba(78,205,196,.2);border-color:var(--low);color:var(--low);}
+
+/* Location section */
+.loc-box{padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg3);border:1px solid var(--border);font-size:13px;color:var(--text3);margin-bottom:8px;min-height:40px;display:flex;align-items:center;word-break:break-all;}
+.loc-box.set{color:var(--accent2);border-color:rgba(78,205,196,.3);}
+.loc-btns{display:flex;gap:7px;margin-bottom:8px;}
+.l-btn{flex:1;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;text-align:center;}
+.l-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
+.l-btn:active{opacity:.8;}
+.radius-row{display:flex;align-items:center;gap:10px;}
+.radius-row input[type=range]{flex:1;accent-color:var(--accent);}
+.radius-lbl{font-size:12px;color:var(--accent);font-weight:600;min-width:38px;text-align:right;}
+
+/* Map */
+#mapContainer{height:240px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);margin-bottom:10px;display:none;}
+#map{height:100%;width:100%;}
+
+/* Sheet buttons */
+.sheet-btns{display:flex;gap:10px;margin-top:18px;}
+.s-btn{flex:1;padding:13px;border-radius:var(--radius-sm);border:none;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;cursor:pointer;}
+.s-btn.cancel{background:var(--bg3);color:var(--text2);}
+.s-btn.save{background:var(--accent);color:#fff;}
+.s-btn.danger{background:rgba(255,107,107,.2);color:var(--high);}
+.s-btn:active{opacity:.85;}
+
+/* List options sheet */
+.list-opt{display:flex;align-items:center;gap:12px;padding:14px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:15px;}
+.list-opt:active{background:var(--bg3);}
+.list-opt-icon{font-size:20px;width:36px;text-align:center;}
+
+/* Toast */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:11px 18px;font-size:13px;color:var(--text);z-index:300;opacity:0;transition:all .3s;pointer-events:none;max-width:320px;text-align:center;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{border-color:var(--success);color:var(--success);}
+.toast.err{border-color:var(--high);color:var(--high);}
+.toast.inf{border-color:var(--accent);color:var(--accent);}
+
+/* Notif permission banner */
+.notif-banner{background:rgba(108,99,255,.15);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:10px 14px;margin:0 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;}
+.notif-banner button{padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">📋 Todo Lists</div>
+      <div class="header-btns">
+        <div class="gps-badge"><div class="gps-dot" id="gpsDot"></div><span id="gpsTxt">GPS</span></div>
+        <button class="icon-btn" onclick="openNewList()" title="New list">＋</button>
+      </div>
+    </div>
+  </div>
+  <div id="notifBanner" style="display:none;" class="notif-banner">
+    <span>🔔 Enable notifications for reminders</span>
+    <button onclick="askNotif()">Allow</button>
+  </div>
+  <div class="tab-row" id="tabRow"></div>
+  <div class="content" id="content"></div>
+  <div class="add-bar" id="addBar" style="display:none;">
+    <div class="add-row">
+      <input class="add-inp" id="addInp" placeholder="Add a task..." onkeydown="if(event.key==='Enter')quickAdd()"/>
+      <button class="detail-btn" onclick="openTaskSheet(null)">⚙️</button>
+      <button class="add-btn" onclick="quickAdd()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Sheet -->
+<div class="overlay" id="taskOverlay" onclick="if(event.target===this)closeTaskSheet()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" id="taskSheetTitle">New Task</div>
+    <div class="fld"><div class="lbl">Task</div><input id="ts_text" placeholder="What needs to be done?"/></div>
+    <div class="fld">
+      <div class="lbl">Priority</div>
+      <div class="p-btns">
+        <button class="p-opt High" onclick="selPriority('High')">🔴 High</button>
+        <button class="p-opt Medium sel" onclick="selPriority('Medium')">🟡 Medium</button>
+        <button class="p-opt Low" onclick="selPriority('Low')">🟢 Low</button>
+      </div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><div class="lbl">Due Date</div><input type="date" id="ts_date"/></div>
+      <div class="fld"><div class="lbl">Due Time</div><input type="time" id="ts_time"/></div>
+    </div>
+    <div class="fld">
+      <div class="lbl">📍 Location Reminder</div>
+      <div class="loc-box" id="ts_locBox">No location set</div>
+      <div class="loc-btns">
+        <button class="l-btn pri" onclick="useMyLoc()">📍 My Location</button>
+        <button class="l-btn" onclick="toggleMap()">🗺 Pick on Map</button>
+        <button class="l-btn" onclick="clearLoc()">✕</button>
+      </div>
+      <div id="mapContainer"><div id="map"></div></div>
+      <div class="radius-row">
+        <span style="font-size:11px;color:var(--text3);">Alert radius:</span>
+        <input type="range" id="ts_radius" min="0.1" max="5" step="0.1" value="0.5" oninput="document.getElementById('ts_radVal').textContent=parseFloat(this.value).toFixed(1)+'km'"/>
+        <span class="radius-lbl" id="ts_radVal">0.5km</span>
+      </div>
+    </div>
+    <div class="sheet-btns">
+      <button class="s-btn cancel" onclick="closeTaskSheet()">Cancel</button>
+      <button class="s-btn save" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- New List Sheet -->
+<div class="overlay" id="newListOverlay" onclick="if(event.target===this)closeNewList()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">New List</div>
+    <div class="fld"><input id="newListInp" placeholder="List name..." onkeydown="if(event.key==='Enter')createList()"/></div>
+    <div class="sheet-btns">
+      <button class="s-btn cancel" onclick="closeNewList()">Cancel</button>
+      <button class="s-btn save" onclick="createList()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- List Options Sheet -->
+<div class="overlay" id="listOptOverlay" onclick="if(event.target===this)closeListOpt()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" id="listOptTitle">List Options</div>
+    <div class="list-opt" onclick="renameListAction()">
+      <span class="list-opt-icon">✏️</span><span>Rename list</span>
+    </div>
+    <div class="list-opt" onclick="deleteListAction()" style="color:var(--high);">
+      <span class="list-opt-icon">🗑</span><span>Delete list</span>
+    </div>
+    <div class="sheet-btns">
+      <button class="s-btn cancel" onclick="closeListOpt()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Sheet -->
+<div class="overlay" id="renameOverlay" onclick="if(event.target===this)closeRename()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">Rename List</div>
+    <div class="fld"><input id="renameInp" placeholder="New name..." onkeydown="if(event.key==='Enter')doRename()"/></div>
+    <div class="sheet-btns">
+      <button class="s-btn cancel" onclick="closeRename()">Cancel</button>
+      <button class="s-btn save" onclick="doRename()">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Sheet -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title" id="confirmTitle">Confirm</div>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:18px;line-height:1.6;" id="confirmMsg"></p>
+    <div class="sheet-btns">
+      <button class="s-btn cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="s-btn danger" onclick="doConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let D = JSON.parse(localStorage.getItem('td')||'{}');
+let AL = null; // active list
+let editIdx = null;
+let tPriority = 'Medium';
+let tLat=null,tLon=null,tAddr='';
+let confirmCb = null;
+let gLat=null,gLon=null;
+let leafMap=null,leafMarker=null;
+let mapOpen=false;
+let notifiedDue = new Set(JSON.parse(localStorage.getItem('nd')||'[]'));
+let notifiedLoc = new Set(JSON.parse(localStorage.getItem('nl')||'[]'));
+
+function persist(){
+  localStorage.setItem('td',JSON.stringify(D));
+  localStorage.setItem('nd',JSON.stringify([...notifiedDue]));
+  localStorage.setItem('nl',JSON.stringify([...notifiedLoc]));
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let tt;
+function toast(msg,type='inf'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show '+type;
+  clearTimeout(tt); tt=setTimeout(()=>el.className='toast',3200);
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+function askNotif(){
+  if(!('Notification' in window)) return;
+  Notification.requestPermission().then(p=>{
+    document.getElementById('notifBanner').style.display='none';
+    if(p==='granted') toast('Notifications enabled! 🔔','ok');
+    else toast('Notifications blocked in browser settings','err');
+  });
+}
+
+function checkNotifBanner(){
+  if('Notification' in window && Notification.permission==='default'){
+    document.getElementById('notifBanner').style.display='flex';
+  }
+}
+
+function sendNotif(title,body){
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  toast(`${title}: ${body}`,'inf');
+  if('Notification' in window && Notification.permission==='granted'){
+    try{ new Notification(title,{body,icon:'https://cdn.jsdelivr.net/npm/twemoji@14/2/72x72/1f4cb.png'}); }catch(e){}
+  }
+}
+
+// ── GPS ───────────────────────────────────────────────────────────────────────
+function startGPS(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(p=>{
+    gLat=p.coords.latitude; gLon=p.coords.longitude;
+    document.getElementById('gpsDot').className='gps-dot on';
+    document.getElementById('gpsTxt').textContent='GPS';
+    checkLocReminders();
+  },e=>{
+    document.getElementById('gpsDot').className='gps-dot';
+  },{enableHighAccuracy:true,maximumAge:30000,timeout:15000});
+}
+
+function hav(la1,lo1,la2,lo2){
+  const R=6371,d=x=>x*Math.PI/180;
+  const a=Math.sin(d(la2-la1)/2)**2+Math.cos(d(la1))*Math.cos(d(la2))*Math.sin(d(lo2-lo1)/2)**2;
+  return R*2*Math.asin(Math.sqrt(a));
+}
+
+function checkLocReminders(){
+  if(gLat===null) return;
+  Object.entries(D).forEach(([ln,tasks])=>{
+    tasks.forEach((t,i)=>{
+      if(t.done||t.loc_lat==null) return;
+      const k=`${ln}_${i}_loc`;
+      if(notifiedLoc.has(k)) return;
+      if(hav(gLat,gLon,t.loc_lat,t.loc_lon)<=(t.radius||0.5)){
+        notifiedLoc.add(k); persist();
+        sendNotif('📍 Location Reminder',`"${t.text}" — you are nearby!`);
+      }
+    });
+  });
+}
+
+function checkDueReminders(){
+  const now=new Date();
+  Object.entries(D).forEach(([ln,tasks])=>{
+    tasks.forEach((t,i)=>{
+      if(t.done||!t.due_date) return;
+      const k=`${ln}_${i}_${t.due_date}_${t.due_time}`;
+      if(notifiedDue.has(k)) return;
+      const due=new Date(t.due_date+'T'+(t.due_time||'23:59'));
+      const diff=(due-now)/1000;
+      if(diff<=1800){
+        notifiedDue.add(k); persist();
+        sendNotif(diff<0?'⚠️ Overdue':'⏰ Due Soon',
+          diff<0?`"${t.text}" is overdue!`:`"${t.text}" due in ${Math.round(diff/60)} min`);
+      }
+    });
+  });
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function renderTabs(){
+  const row=document.getElementById('tabRow');
+  row.innerHTML='';
+  const lists=Object.keys(D);
+  if(!lists.length){
+    row.innerHTML='<span style="font-size:13px;color:var(--text3);padding:4px 2px;">Tap ＋ to create your first list</span>';
+    return;
+  }
+  lists.forEach(name=>{
+    const cnt=D[name].filter(t=>!t.done).length;
+    const btn=document.createElement('button');
+    btn.className='tab'+(name===AL?' active':'');
+    btn.innerHTML=`${esc(name)} <span class="cnt">${cnt}</span>`;
+    btn.onclick=()=>selList(name);
+    btn.oncontextmenu=(e)=>{e.preventDefault();openListOpt(name);};
+    // Long press support for mobile
+    let pressTimer;
+    btn.addEventListener('touchstart',()=>{ pressTimer=setTimeout(()=>openListOpt(name),600); });
+    btn.addEventListener('touchend',()=>clearTimeout(pressTimer));
+    btn.addEventListener('touchmove',()=>clearTimeout(pressTimer));
+    row.appendChild(btn);
+  });
+}
+
+function selList(name){
+  AL=name;
+  document.getElementById('addBar').style.display='block';
+  renderTabs(); renderContent();
+}
+
+// ── Content ───────────────────────────────────────────────────────────────────
+function renderContent(){
+  const el=document.getElementById('content');
+  if(!AL||!D[AL]){
+    el.innerHTML='<div class="empty"><div class="empty-icon">👆</div><div class="empty-txt">Select a list above<br>or create a new one</div></div>';
+    return;
+  }
+  const tasks=D[AL];
+  const pending=tasks.filter(t=>!t.done);
+  const done=tasks.filter(t=>t.done);
+  if(!tasks.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">✨</div><div class="empty-txt">No tasks yet!<br>Add one below.</div></div>';
+    return;
+  }
+  let html='';
+  if(pending.length){
+    html+=`<div class="sec-label">Tasks · ${pending.length}</div>`;
+    pending.forEach(t=>html+=taskCard(t,tasks.indexOf(t)));
+  }
+  if(done.length){
+    html+='<div class="divider"></div>';
+    html+=`<div class="sec-label">Completed · ${done.length}</div>`;
+    done.forEach(t=>html+=taskCard(t,tasks.indexOf(t)));
+  }
+  el.innerHTML=html;
+}
+
+function taskCard(t,idx){
+  const now=new Date();
+  const overdue=t.due_date&&!t.done&&new Date(t.due_date+'T'+(t.due_time||'23:59'))<now;
+  const p=(t.priority||'Medium');
+  let meta='';
+  if(t.due_date) meta+=`<span class="pill ${overdue?'overdue':'due'}">🗓 ${t.due_date}${t.due_time?' '+t.due_time:''}</span>`;
+  if(t.loc_addr){const s=t.loc_addr.length>28?t.loc_addr.slice(0,28)+'…':t.loc_addr; meta+=`<span class="pill loc">📍 ${s}</span>`;}
+  return `<div class="task-card ${t.done?'done':''}">
+    <div class="task-inner">
+      <div class="p-stripe ${p}"></div>
+      <label class="chk-wrap">
+        <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${idx})"/>
+        <div class="chk-box"></div>
+      </label>
+      <div class="task-body">
+        <div class="task-txt">${esc(t.text)}</div>
+        ${meta?`<div class="task-meta">${meta}</div>`:''}
+      </div>
+      <div class="task-acts">
+        <button class="t-btn" onclick="openTaskSheet(${idx})">✏️</button>
+        <button class="t-btn" onclick="confirmDel(${idx})">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Task actions ──────────────────────────────────────────────────────────────
+function quickAdd(){
+  const inp=document.getElementById('addInp');
+  const txt=inp.value.trim();
+  if(!txt){toast('Type a task first!','err');return;}
+  D[AL].push({text:txt,done:false,priority:'Medium',due_date:'',due_time:'',loc_lat:null,loc_lon:null,loc_addr:'',radius:0.5});
+  persist(); inp.value='';
+  renderTabs(); renderContent();
+  toast('Task added ✅','ok');
+}
+
+function toggleTask(idx){
+  D[AL][idx].done=!D[AL][idx].done;
+  persist(); renderTabs(); renderContent();
+}
+
+function confirmDel(idx){
+  openConfirm('Delete Task',`Delete "${D[AL][idx].text}"?`,()=>{
+    D[AL].splice(idx,1); persist();
+    renderTabs(); renderContent();
+    toast('Task deleted','inf');
+  });
+}
+
+// ── Task sheet ────────────────────────────────────────────────────────────────
+function openTaskSheet(idx){
+  editIdx=idx;
+  document.getElementById('taskSheetTitle').textContent=idx!==null?'Edit Task':'New Task';
+  if(idx!==null){
+    const t=D[AL][idx];
+    document.getElementById('ts_text').value=t.text;
+    document.getElementById('ts_date').value=t.due_date||'';
+    document.getElementById('ts_time').value=t.due_time||'';
+    document.getElementById('ts_radius').value=t.radius||0.5;
+    document.getElementById('ts_radVal').textContent=(t.radius||0.5).toFixed(1)+'km';
+    tLat=t.loc_lat; tLon=t.loc_lon; tAddr=t.loc_addr||'';
+    selPriority(t.priority||'Medium');
+  } else {
+    document.getElementById('ts_text').value='';
+    document.getElementById('ts_date').value='';
+    document.getElementById('ts_time').value='';
+    document.getElementById('ts_radius').value=0.5;
+    document.getElementById('ts_radVal').textContent='0.5km';
+    tLat=null;tLon=null;tAddr='';
+    selPriority('Medium');
+  }
+  updateLocBox();
+  closeMap();
+  document.getElementById('taskOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('ts_text').focus(),350);
+}
+
+function closeTaskSheet(){
+  document.getElementById('taskOverlay').classList.remove('open');
+  closeMap();
+}
+
+function selPriority(p){
+  tPriority=p;
+  document.querySelectorAll('.p-opt').forEach(b=>{
+    b.className='p-opt '+b.classList[1]+(b.classList[1]===p?' sel':'');
+  });
+}
+
+function useMyLoc(){
+  if(!navigator.geolocation){toast('GPS not supported','err');return;}
+  toast('Getting location...','inf');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    tLat=pos.coords.latitude; tLon=pos.coords.longitude;
+    tAddr=tLat.toFixed(5)+', '+tLon.toFixed(5);
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${tLat}&lon=${tLon}&format=json`,
+      {headers:{'Accept-Language':'en'}})
+      .then(r=>r.json()).then(d=>{tAddr=d.display_name||tAddr;updateLocBox();})
+      .catch(()=>{}); 
+    updateLocBox();
+    toast('Location set! 📍','ok');
+  },()=>toast('Enable GPS & try again','err'),{enableHighAccuracy:true,timeout:10000});
+}
+
+function toggleMap(){
+  mapOpen=!mapOpen;
+  const mc=document.getElementById('mapContainer');
+  if(mapOpen){
+    mc.style.display='block';
+    if(!leafMap){
+      leafMap=L.map('map').setView([20,78],4);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
+      leafMap.on('click',e=>{
+        const {lat,lng}=e.latlng;
+        tLat=lat; tLon=lng; tAddr=lat.toFixed(5)+', '+lng.toFixed(5);
+        if(leafMarker) leafMarker.remove();
+        leafMarker=L.marker([lat,lng]).addTo(leafMap);
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+          {headers:{'Accept-Language':'en'}})
+          .then(r=>r.json()).then(d=>{tAddr=d.display_name||tAddr;updateLocBox();})
+          .catch(()=>{});
+        updateLocBox();
+        toast('Pin dropped! ✅','ok');
+      });
+    }
+    setTimeout(()=>{
+      leafMap.invalidateSize();
+      if(tLat) leafMap.setView([tLat,tLon],14);
+      else if(gLat) leafMap.setView([gLat,gLon],13);
+    },200);
+  } else {
+    mc.style.display='none';
+  }
+}
+
+function closeMap(){
+  mapOpen=false;
+  document.getElementById('mapContainer').style.display='none';
+}
+
+function clearLoc(){tLat=null;tLon=null;tAddr='';updateLocBox();}
+
+function updateLocBox(){
+  const el=document.getElementById('ts_locBox');
+  if(tAddr){
+    const s=tAddr.length>55?tAddr.slice(0,55)+'…':tAddr;
+    el.textContent='📍 '+s; el.className='loc-box set';
+  } else {
+    el.textContent='No location set'; el.className='loc-box';
+  }
+}
+
+function saveTask(){
+  const txt=document.getElementById('ts_text').value.trim();
+  if(!txt){toast('Enter a task!','err');return;}
+  const task={
+    text:txt, done:editIdx!==null?D[AL][editIdx].done:false,
+    priority:tPriority,
+    due_date:document.getElementById('ts_date').value,
+    due_time:document.getElementById('ts_time').value,
+    loc_lat:tLat, loc_lon:tLon, loc_addr:tAddr,
+    radius:parseFloat(document.getElementById('ts_radius').value)
+  };
+  if(editIdx!==null) D[AL][editIdx]=task;
+  else D[AL].push(task);
+  persist(); closeTaskSheet();
+  renderTabs(); renderContent();
+  toast(editIdx!==null?'Task updated ✅':'Task added ✅','ok');
+}
+
+// ── New List ──────────────────────────────────────────────────────────────────
+function openNewList(){
+  document.getElementById('newListOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('newListInp').focus(),350);
+}
+function closeNewList(){
+  document.getElementById('newListOverlay').classList.remove('open');
+  document.getElementById('newListInp').value='';
+}
+function createList(){
+  const name=document.getElementById('newListInp').value.trim();
+  if(!name){toast('Enter a name!','err');return;}
+  if(D[name]){toast('Already exists!','err');return;}
+  D[name]=[]; persist(); closeNewList(); selList(name);
+  toast(`"${name}" created 🎉`,'ok');
+}
+
+// ── List Options (rename / delete) ────────────────────────────────────────────
+let listOptTarget=null;
+function openListOpt(name){
+  listOptTarget=name;
+  document.getElementById('listOptTitle').textContent=`"${name}"`;
+  document.getElementById('listOptOverlay').classList.add('open');
+}
+function closeListOpt(){document.getElementById('listOptOverlay').classList.remove('open');}
+
+function renameListAction(){
+  closeListOpt();
+  document.getElementById('renameInp').value=listOptTarget;
+  document.getElementById('renameOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('renameInp').focus(),350);
+}
+function closeRename(){document.getElementById('renameOverlay').classList.remove('open');}
+function doRename(){
+  const newName=document.getElementById('renameInp').value.trim();
+  if(!newName){toast('Enter a name!','err');return;}
+  if(newName===listOptTarget){closeRename();return;}
+  if(D[newName]){toast('Name already taken!','err');return;}
+  // Rebuild preserving order
+  const newD={};
+  Object.keys(D).forEach(k=>{ newD[k===listOptTarget?newName:k]=D[k]; });
+  D=newD; persist();
+  if(AL===listOptTarget) AL=newName;
+  closeRename(); renderTabs(); renderContent();
+  toast(`Renamed to "${newName}" ✅`,'ok');
+}
+
+function deleteListAction(){
+  closeListOpt();
+  openConfirm('Delete List',`Delete "${listOptTarget}" and all its tasks?`,()=>{
+    delete D[listOptTarget]; persist();
+    if(AL===listOptTarget){
+      AL=Object.keys(D)[0]||null;
+      document.getElementById('addBar').style.display=AL?'block':'none';
+    }
+    renderTabs(); renderContent();
+    toast('List deleted','inf');
+  });
+}
+
+// ── Confirm ───────────────────────────────────────────────────────────────────
+function openConfirm(title,msg,cb){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  confirmCb=cb;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');confirmCb=null;}
+function doConfirm(){if(confirmCb)confirmCb();closeConfirm();}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init(){
+  const lists=Object.keys(D);
+  if(lists.length){AL=lists[0];document.getElementById('addBar').style.display='block';}
+  renderTabs(); renderContent();
+  checkNotifBanner();
+  startGPS();
+  setInterval(checkDueReminders,60000);
+  checkDueReminders();
+}
+init();
+</script>
+</body>
+</html>
